@@ -6,10 +6,17 @@ using System.Threading.Tasks;
 
 namespace RoomEscape
 {
-    class Program
+    internal class Program
     {
-        static void Main(string[] args)
+        private static void Main(string[] args)
         {
+            // Set up the game
+
+            // Enter the game loop
+
+            // Read player input Consequences of input Update world
+
+            // Leave the loop, pack up and go home
         }
     }
 }
