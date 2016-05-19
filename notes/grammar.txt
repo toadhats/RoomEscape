@@ -19,5 +19,12 @@ Parsing:
 
 Direct and indirect objects:
 - This is where it gets a bit trickier
-- One possible ordering is VP NP<indirect object> NP<direct object> – "give the boy the balloon". If there are no prepositions, only noun phrases, then this is how we parse this input. 
+- One possible ordering is VP NP<indirect object> NP<direct object> – "give the boy the balloon". If there are no prepositions, only noun phrases, then this is how we parse this input.
 - Another ordering is used when there are prepositions in the input: VP NP<direct> PP(P NP) – "use key on door"
+- Simplest thing to do would be to just use the prepositions to identify the DO an IO then throw them away, and just apply the verb to the two objects. Downside here is that we can't distinguish between different actions using prepositions anymore (e.g. "put the key on the desk" versus "put the key in the desk").
+- Alternatively, there would have to be certain ditransitive actions that also took a *third* argument, which is a preposition, but then we'd have to be tracking these multiple locations on the object entities as well, which is a bit of a complexity spiral
+- If I was going to do it, I guess I'd give an object a collection of containers, with the various prepositions that refer to them as keys (instead of using a collection of synonymous nouns)
+- There's another scenario – where a prepositional phrase is used to specify/locate another entity (as the target of a regular transitive verb): "Push button underneath desk". Thinking too hard about this could cause another spiral.
+- Simple solution to this one is to use the preposition to find the "parent" object, then see if there's a match for the other noun in the object's list of components. This shouldn't need to target things in an objects *contents*, though – contents are targeted when we're using "get" though, which is a whole other case basically
+
+All in all it's starting to look like identifying the verb is the most significant part of parsing a line of input. For one, so long as the user is thinking in adventure game imperatives, the verb will always appear at the start. Secondly, we have to find the verb to determine that we have a valid input at all, so we may as well process it while we're at it, and learn about what to expect from the remainder of the input based on the properties of the command we retrieve. 
