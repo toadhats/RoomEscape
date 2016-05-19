@@ -1,5 +1,23 @@
+Commands:
+- words the game understands are commands
+- commands can have synonyms; is a command an object that has a collection of strings that refer to it?
+
+
 Intransitive commands:
 - This covers a lot of the more fundamental game commands
 - Includes a lot of the non-diegetic inputs: 'save', 'load', 'quit'
 - Any single-token input should be treated as an intransitive verb.
 - If a single token input isn't in the list of intransitive commands, then check the list of transitive ones and tell the user they're missing a target/object
+
+Parsing:
+- The first step is to find the verb
+- If nothing in the input is a valid verb, reject the input as incomprehensible
+- If we get an intransitive, and it's the only token in the input, call the command.
+- If the verb is an intransitive, and there's more than one token in the input, complain.
+- If the verb takes a direct object, and the remainder of the input is a noun (phrase), then handle it.
+- If the verb takes a direct object and an indirect object, scan the rest of the input for a noun phrase, check if it's a valid target, scan the remainder, check if it exists as well, and then send the logic to the objects involved to work out how/if they can actually interact.
+
+Direct and indirect objects:
+- This is where it gets a bit trickier
+- One possible ordering is VP NP<indirect object> NP<direct object> – "give the boy the balloon". If there are no prepositions, only noun phrases, then this is how we parse this input. 
+- Another ordering is used when there are prepositions in the input: VP NP<direct> PP(P NP) – "use key on door"
