@@ -1,0 +1,5 @@
+Intransitive commands:
+- This covers a lot of the more fundamental game commands
+- Includes a lot of the non-diegetic inputs: 'save', 'load', 'quit'
+- Any single-token input should be treated as an intransitive verb.
+- If a single token input isn't in the list of intransitive commands, then check the list of transitive ones and tell the user they're missing a target/object
