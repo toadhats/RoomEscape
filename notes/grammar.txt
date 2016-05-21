@@ -12,9 +12,9 @@ Intransitive commands:
 Parsing:
 - The first step is to find the verb
 - If nothing in the input is a valid verb, reject the input as incomprehensible
-- If we get an intransitive, and it's the only token in the input, call the command.
+- If we get an intransitive, and it's the only token in the input, perform the action.
 - If the verb is an intransitive, and there's more than one token in the input, complain.
-- If the verb takes a direct object, and the remainder of the input is a noun (phrase), then handle it.
+- If the verb takes a direct object, and the remainder of the input is a noun phrase that maps to a valid target entity, then pass the action to the object and see how it reacts.
 - If the verb takes a direct object and an indirect object, scan the rest of the input for a noun phrase, check if it's a valid target, scan the remainder, check if it exists as well, and then send the logic to the objects involved to work out how/if they can actually interact.
 
 Direct and indirect objects:
@@ -27,4 +27,4 @@ Direct and indirect objects:
 - There's another scenario – where a prepositional phrase is used to specify/locate another entity (as the target of a regular transitive verb): "Push button underneath desk". Thinking too hard about this could cause another spiral.
 - Simple solution to this one is to use the preposition to find the "parent" object, then see if there's a match for the other noun in the object's list of components. This shouldn't need to target things in an objects *contents*, though – contents are targeted when we're using "get" though, which is a whole other case basically
 
-All in all it's starting to look like identifying the verb is the most significant part of parsing a line of input. For one, so long as the user is thinking in adventure game imperatives, the verb will always appear at the start. Secondly, we have to find the verb to determine that we have a valid input at all, so we may as well process it while we're at it, and learn about what to expect from the remainder of the input based on the properties of the command we retrieve. 
+All in all it's starting to look like identifying the verb is the most significant part of parsing a line of input. For one, so long as the user is thinking in adventure game imperatives, the verb will always appear at the start. Secondly, we have to find the verb to determine that we have a valid input at all, so we may as well process it while we're at it, and learn about what to expect from the remainder of the input based on the properties of the command we retrieve.
