@@ -3,13 +3,13 @@ Commands:
 - commands can have synonyms; is a command an object that has a collection of strings that refer to it?
 
 
-Intransitive commands:
+## Intransitive commands:
 - This covers a lot of the more fundamental game commands
 - Includes a lot of the non-diegetic inputs: 'save', 'load', 'quit'
 - Any single-token input should be treated as an intransitive verb.
 - If a single token input isn't in the list of intransitive commands, then check the list of transitive ones and tell the user they're missing a target/object
 
-Parsing:
+## Parsing:
 - The first step is to find the verb
 - If nothing in the input is a valid verb, reject the input as incomprehensible
 - If we get an intransitive, and it's the only token in the input, perform the action.
@@ -17,7 +17,7 @@ Parsing:
 - If the verb takes a direct object, and the remainder of the input is a noun phrase that maps to a valid target entity, then pass the action to the object and see how it reacts.
 - If the verb takes a direct object and an indirect object, scan the rest of the input for a noun phrase, check if it's a valid target, scan the remainder, check if it exists as well, and then send the logic to the objects involved to work out how/if they can actually interact.
 
-Direct and indirect objects:
+## Direct and indirect objects:
 - This is where it gets a bit trickier
 - One possible ordering is VP NP<indirect object> NP<direct object> – "give the boy the balloon". If there are no prepositions, only noun phrases, then this is how we parse this input.
 - Another ordering is used when there are prepositions in the input: VP NP<direct> PP(P NP) – "use key on door"
@@ -28,3 +28,179 @@ Direct and indirect objects:
 - Simple solution to this one is to use the preposition to find the "parent" object, then see if there's a match for the other noun in the object's list of components. This shouldn't need to target things in an objects *contents*, though – contents are targeted when we're using "get" though, which is a whole other case basically
 
 All in all it's starting to look like identifying the verb is the most significant part of parsing a line of input. For one, so long as the user is thinking in adventure game imperatives, the verb will always appear at the start. Secondly, we have to find the verb to determine that we have a valid input at all, so we may as well process it while we're at it, and learn about what to expect from the remainder of the input based on the properties of the command we retrieve.
+
+ ## Noun Phrases – basic approach:
+- Adjectives don't have any semantic meaning within the simulation
+- But adjectives may be part of noun phrases and act as specifiers
+- In these cases, the whole NP is stored as an alias on the object
+- Root nouns are also stored in the aliases
+- In short, if the player sees the short desc "There is an old wooden table here", we need to be able to parse all the following references to this object:
+  - "table"
+  - "wooden table"
+  - "old table"
+  - "old wooden table"
+- Since this is all pretty "case by case" in a hand-made adventure, the easiest approach is just to store all these possibilities in the table object itself
+
+*** Success cases ***
+
+Case: Whole input matches one valid noun ("kick ball")
+  - Search player's current room and inventory for objects where "ball" is a valid alias
+  - Perform the action
+
+Case: A substring of the input matches a valid object in the room, and the remainder matches another valid object, no prepositions ("give beggar a coin")
+  - Assume the first NP is the indirect object, the second is the direct object, and try to perform the action
+
+Case: ditransitive action with preposition ("put crystal in control panel")
+  - First step is to find any legal prepositions and split the input on them
+  - If we find two objects this way, assign direct and indirect object status
+  - If we actually have a ditransitive verb, perform the action on the objects
+
+*** Failure cases ***
+
+Case: Input after extracting transitive verb does not contain any valid nouns ("Hug imaginary friend")
+  - Search players room and inventory for an item matching the input substring that should contain a noun, find nothing
+  - Tell player "You don't see that here"
+
+Case: Input after extracting ditransitive verb contains only one valid object
+  Case: no prepositions found at all "give ball"
+    - Assume the direct object was provided but indirect was not
+    - Tell player "That's not going to work on its own" or something
+  Case: A preposition was found on the valid noun phrase "give to child", "hit with sword"
+    - Tell player "What do you want to give to child", "what do you want to hit with sword", etc
+  Case: A valid noun was found, and a preposition was found attached to an unrecognised noun ("give bag of coins to imaginary friend", "hit goblin with imaginary sword")
+    - "You don't see anything or anyone like that to give the bag of coins to", "you don't have an imaginary sword to hit the goblins with" -- [NOTE: this is starting to suggest that prepositions have more significance/utility than I initially would have thought]
+
+### Overcomplicated approach:
+- If adjectives in the input DID have semantic meaning, they would map to properties on an object:
+Object: Table
+Desc: "An antique oak dining table is here"
+aliases: [table, dining table]
+properties: [wood, antique]
+
+Property: oak
+adjectives: [wood, wooden, oak, oaken]
+
+Property: antique
+adjectives: [antique, old]
+
+The "overcomplicated version" would be required if I actually wanted to make procedural generation possible.
+
+## Semantic significance of determiners
+- In many cases determiners are just for the purpose of making a sentence grammatical to english speakers – they don't convey any special meaning about the world
+- Possessive determiners could important for disambiguation, numeric determiners are definitely important when dealing with multiple items, quantifying determiners are a little less conventional in this context but would allow an unusual degree of expressiveness in some specific cases...
+
+### Possessive determiners
+- Disambiguation between similar objects in a room would more commonly be achieved via adjectives, e.g. []"red button", "green button", "blue button]", but there are a few cases where it makes sense to use a determiner instead
+- Cases where determiners act to disambiguate would probably most often involve possession: "steal policeman's hat"
+- A possessive like this could be interpreted as an instruction to search only a specific container/inventory/collection of components for the target of an action:
+    > steal policeman's wallet
+    >> "The policeman does not have a wallet"
+- We COULD have it so that you MUST use a determiner like this to access anything other than the room inventory, but at the same time we check every entity's contents to see if it's a valid action at all, e.g.
+    > steal umbrella
+    >> "You don't see anything like that here."
+    > steal hat
+    >> "Whose hat do you want to steal?"
+    > steal policeman's hat
+    >> "You steal the policeman's hat, time to start running lmao"
+
+    In the first case, we searched the room, found nothing, searched the contents of everything in the room, still found nothing, which causes a generic "noun doesn't exist here" response. In the second case, we searched the room contents, found nothing, searched the contents of everything in the room, found the hat in the inventory of a mobile (which means we use the interrogative determiner "whose" instead of the generic "which"), and then gave the player a hint that they'd need to be a little more specific to achieve what they're trying to do.
+
+### Numeric and quantifying determiners
+- This is a case so useful, and so common, that it would normally be a module/whatever all on its own, but since we're being all theoretical about this, we should handle it while handling determiners in general
+- Articles can kind of act as numeric determiners in some cases, is this going to be tricky?
+- It's also a pretty simple case, logic-wise, can probably work this out just with examples/"user stories"
+
+*** Success cases ***
+Case: Player targets an object without a determiner and there is one matching item in the room – "> get book"
+  - Target the item as usual, nothing to see here ">> You get the dusty old book."
+
+Case: Player targets an object without a determiner and there are multiple *identical* objects in the room – "> get book"
+  - Check the room for a matching noun, find a "stack" (e.g. a single object type with a quantity property, if we handle stacks that way; or some kind of special collection type that implies all objects in the collection are equivalent, like a stack is an entity in its own right)
+  - Act on only one item in the stack – ">> You take one of the dusty old books"
+
+Case: Player targets a stack of objects with an indefinite article – "> take a book"
+  - Works the same as if they hadn't specified – or is it the other way around?
+
+Case: Player targets a stack and provides a numeric determiner less than the number in the stack – "> Take 6 books"
+  - Give the items to the player, nothing to see here really
+
+Case: Player targets a stack of objects with a numeric determiner equal to the number in the stack
+  - This time we just need to say "all" – ">> You take all the books"
+
+Case: Player targets a stack with the quantifying determiner "all" – "> get all the books"
+  - Same as above.
+
+Case: Player targets a stack with a numeric determiner greater than the number of items in the stack – "> get 20 books"
+  - They should succeed, but they should know that they tried to get too many, just to keep the world seeming totally consistent
+  - ">> There are only 8 books here, so you take them all."
+
+Case: There's multiple equivalent objects in a stack, and the player decides to try and use the word "any" because they're really weird, lucky I'm also super weird and have actually considered how to handle this – "get any book"
+  - The items are actually just equivalent, so give them the first one, don't even need to randomise it. – ">> You take a book."
+
+Case: There are multiple *non-equivalent* items matching an alias, the the player used "any" again – "Push any key"
+  - Pick a random item from the valid matches and perform the action, ideally telling the player it was completely random – "You push a key at at random"
+
+
+
+
+
+*** Failure cases ***
+
+Case: Player does not provide a determiner, or provides a definite article, but there exists more than one *non-equivalent* items accessible via the noun/alias they provided – "> push (the) button"
+  - ">> Which button do you want to push? There's more than one here."
+
+Case: Player provides a determiner with an invalid noun
+ – This isn't really a determiner parsing problem, but if we decided to parse the determiners first we might end up handling it here.
+ - Just throw this back to the regular no nouns found case somehow I guess.
+
+
+#### Really weird edge cases nobody familiar with text games would expect to actually work
+- There's no good reason to implement these, as they're not at all straightforward and would work via a totally different system to what we've discussed so far. But it'd be kind of cool if it was manageable.
+
+Case: There are multiple *non-equivalent* items matching a noun, and the player has provided a distributive determiner "each" or quantifier "all" – "> Push all the buttons"
+  - This should basically be treated like an in-game foreach loop
+  - "> Push all the buttons"
+  - ">> You push the green button. The door on the far wall opens.
+     >> You push the yellow button. The door on the far wall closes.
+     >> You push the red button. The room begins to fill with poisonous gas. Pushing *all* the buttons was probably a bad idea..."
+  – "> Take all items"
+  – ">> You pick up a red key, a green key, a blue key, a piece of trash, and an enraged poisonous snake"
+  - The least weird case that's actually an important convenience for players: "> take all"
+  - Handle this the same as above, but it has to be parsed as its own case – in fact it implies that determiners need to be parsed before nouns, because if we see the determiner "all" we know that we don't actually need any nouns at all, we should just try the action on everything in the room.
+  - Maybe limitations should be placed on this? "> take all" makes a lot of sense. On the other hand "> push all" is a really good way to cheat at puzzles, and "> kill all" would be a really good way to auto-grind in a game with stats/levels...
+
+Case: Player decides to use a quantifier other than "all"
+- Looks like we've got ourselves another really weird player
+- Options here are "many", "few", "several", "some", "half of" – pretty weird shit for a text game to try and handle lol
+- If the systems were in place to actually do this it wouldn't be hard, but it's not super necessary either...
+- Refer to the dictionary below for ideas as to how we could choose to try and interpret these
+
+
+## Determiner dictionary
+
+### Articles
+- A, an: Valid if there's only one matching object, valid if there is more than one equivalent object
+- The: Valid if there is only one match, invalid if there is more than one non-equivalent, maybe treat as "all" if there's an equivalent stack, although grammatically this would require a plural noun ("take all the keys")
+
+### Demonstratives
+- Surely nobody would attempt to use these in a text game right? Probably reject them outright because they don't make much sense unless our parser was capable of really deep inference, and there's no way it would be, or should be.
+– this, that: Just complain. User is really weird for trying to talk to a parser using demonstratives...
+
+### Possessives
+- my: Only search for objects in the player's inventory/components
+- his/her/their: Reject if there's more than one entity this could refer to, I guess accept it otherwise and only search for objects in the relevant inventory/component collection
+- [Entity]'s: If the specified entity actually exists, only search its contents/components for a match
+
+### Quantifiers
+- Every, all: Refers to a whole stack, "all" *could* be treated as an alias for "everything in the room" in some cases, e.g. "> take all"
+- Some: Basically a random number, but if it was greater than half the total, you'd say 'most', so why not call it a number in [2..n/2] where n is the total number in the stack
+- Many: This one is harder. It's more than "some", but i still wouldn't consider it equivalent to "most". This is less dependant semantically on the actual size of the stack, e.g you could fail because "there aren't many left". Could just arbitrarily use a number in [5..20] or something...
+- Most: Only a really weird person would try this, but I guess we could treat it as a number in [n/2..n-1]
+
+### Numerals
+- Any integer is valid, subject to other checks like the number actually in the stack. If the player's inventory was finite, this would have to be checked as well
+- Should we allow the player to spell numbers out? Not that hard to do, but would they really want to "take twenty-six apples"?
+
+### Distributive determiners
+- Each: treat as a foreach loop, or as a simple "all" if dealing with a stack of equivalents
+- Any: take a random match (if dealing with an equivalent stack, may as well just take the first)
